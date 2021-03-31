@@ -41,24 +41,24 @@ Script Names and Purposes
 =========================
 
     1. the scripts in ./bin - 
-        ./bin/1password_downloader.py
+        ./bin/one_password_event_downloader.py
 
     2. show the help page
-        ./bin/1password_downloader.py -h
+        ./bin/one_password_event_downloader.py -h
 
     3. specify configuration file to use
-        ./bin/1password_downloader.py -c ./etc/1password_downloader.cfg
+        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg
 
     4. download the last 10 days of events
-        ./bin/1password_downloader.py -c ./etc/1password_downloader.cfg -o 10
+        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -o 10
 
     5. specify script verbosity ( default is 0 or silent save errors )
-        ./bin/1password_downloader.py -c ./etc/1password_downloader.cfg -v 5
+        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -v 5
 
 To Do List:
 ===========
 
-* add posting to sources
+* add optional ability to keep source files
 
 License
 =======

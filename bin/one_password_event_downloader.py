@@ -143,11 +143,15 @@ if ARGS.VERBOSE > 7:
     print('CacheD: {}'.format(os.environ['CACHED']))
     print('Older_: {}'.format(os.environ['OLDER']))
 
+TODAYDATE = datetime.date.today().strftime('%Y%m%d')
+
 LOGDIR = os.path.join(CACHED, 'log')
 VARDIR = os.path.join(CACHED, 'var')
 CFGDIR = os.path.join(CACHED, 'etc')
 CACHEDIR = os.path.join(VARDIR, 'cache')
-MANIFEST = os.path.join(LOGDIR, 'manifest.log')
+MANIFEST = os.path.join(LOGDIR, '1password' + '.' + TODAYDATE + '.' + 'manifest.log')
+
+USERDICT = dict()
 
 if ARGS.VERBOSE > 5:
     print('LogDir: {}'.format(LOGDIR))
@@ -155,8 +159,6 @@ if ARGS.VERBOSE > 5:
     print('CfgDir: {}'.format(CFGDIR))
     print('Events: {}'.format(CACHEDIR))
     print('Manifest: {}'.format(MANIFEST))
-
-TODAYDATE = datetime.date.today().strftime('%Y%m%d')
 
 def setup_directories():
     """
@@ -190,6 +192,24 @@ def signin_to_vault():
     sessiontag = 'OP_SESSION_eventlist'
     os.environ[sessiontag] = optoken
 
+def populate_user_dict():
+    """
+    This collects the reference data for users
+    """
+    userlist = [ opcmd, 'list', 'users']
+    userscmd = CMDSEP.join(userlist)
+    usersout = pexpect.spawn(userscmd, encoding='utf-8')
+
+    usersjson = usersout.read().strip()
+    usersjsonarray = (json.loads(usersjson))
+    for userjsonobject in usersjsonarray:
+        user_name = userjsonobject['name']
+        user_uuid = userjsonobject['uuid']
+        user_mail = userjsonobject['email']
+        USERDICT[user_uuid] = dict()
+        USERDICT[user_uuid]['user_mail'] = user_mail
+        USERDICT[user_uuid]['user_name'] = user_name
+
 def list_vault_events(lasttoken):
     """
     This lists the events of the vault using the op cmd line
@@ -219,9 +239,19 @@ def enrich_and_publish_events(jsonarray):
 
     session = requests.Session()
 
+    manifestobject = open(MANIFEST, 'a')
+
     for jsonobject in jsonarray:
         eventid = jsonobject['eid']
         jsondate = jsonobject['time']
+        actoruid = jsonobject['actorUuid']
+        if actoruid in USERDICT:
+            jsonobject['user_name'] = USERDICT[actoruid]['user_name']
+            jsonobject['user_mail'] = USERDICT[actoruid]['user_mail']
+        else:
+            jsonobject['user_name'] = 'unresolved_name'
+            jsonobject['user_mail'] = 'unresolved_mail'
+
         eventdate = dateutil.parser.parse(jsondate)
         bucket = eventdate.strftime('%Y%m%d')
         datedelta = int(TODAYDATE) - int(bucket)
@@ -232,16 +262,19 @@ def enrich_and_publish_events(jsonarray):
         bucket_dir = os.path.join(CACHEDIR, bucket)
         os.makedirs(bucket_dir, exist_ok=True)
         targetjsonfile = os.path.join(bucket_dir, str(eventid) + '.json' )
-
         with open(targetjsonfile, 'w', encoding="utf-8", newline='\n' ) as jsonfile:
             json.dump(jsonobject, jsonfile, indent=4, sort_keys=True, ensure_ascii=True)
         jsonfile.close()
 
-        publish_mapitem(targetjsonfile,session,SOURCE)
+        manifestobject.write('{0},{1},{2},{3}\n'.format(TODAYDATE,bucket,eventid,targetjsonfile))
+
+        if SOURCE != 'UNSET':
+            publish_mapitem(targetjsonfile,session,SOURCE)
 
         if eventid:
             finalevent = str(eventid)
 
+    manifestobject.close()
     return finalevent
 
 def publish_mapitem(localfile, session, url):
@@ -258,6 +291,8 @@ def publish_mapitem(localfile, session, url):
         response = session.post(url, data=json.dumps(payload), headers=headers).status_code
         if ARGS.VERBOSE > 5:
             print('RESPONSE: ' + str(response))
+        if response == 200:
+            os.remove(localfile)
 
 def signout_to_vault():
     """
@@ -270,6 +305,7 @@ def signout_to_vault():
 setup_directories()
 opcmd = setup_commands()
 signin_to_vault()
+populate_user_dict()
 LAST_EVENT = list_vault_events('UNSET')
 while LAST_EVENT != 'UNSET':
     signin_to_vault()
