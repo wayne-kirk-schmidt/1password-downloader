@@ -203,9 +203,21 @@ def list_vault_events(lasttoken):
     eventsout = pexpect.spawn(eventscmd, encoding='utf-8')
 
     eventsjson = eventsout.read().strip()
-    jsonarray = (json.loads(eventsjson))
+    myjsonarray = (json.loads(eventsjson))
 
     finalevent=lasttoken
+
+    finalevent = enrich_and_publish_events(myjsonarray)
+    return finalevent
+
+def enrich_and_publish_events(jsonarray):
+    """
+    This looks up uuid in the users list and publishes
+    Publishing the events could be to a file or a source
+    This will also publish the results into a manifest file
+    """
+
+    session = requests.Session()
 
     for jsonobject in jsonarray:
         eventid = jsonobject['eid']
@@ -220,12 +232,32 @@ def list_vault_events(lasttoken):
         bucket_dir = os.path.join(CACHEDIR, bucket)
         os.makedirs(bucket_dir, exist_ok=True)
         targetjsonfile = os.path.join(bucket_dir, str(eventid) + '.json' )
-        with open(targetjsonfile, 'w') as outputfile:
-            json.dump(jsonobject, outputfile)
+
+        with open(targetjsonfile, 'w', encoding="utf-8", newline='\n' ) as jsonfile:
+            json.dump(jsonobject, jsonfile, indent=4, sort_keys=True, ensure_ascii=True)
+        jsonfile.close()
+
+        publish_mapitem(targetjsonfile,session,SOURCE)
 
         if eventid:
             finalevent = str(eventid)
+
     return finalevent
+
+def publish_mapitem(localfile, session, url):
+    """
+    This is the wrapper for publishing to SumoLogic source
+    """
+    if ARGS.VERBOSE > 3:
+        print('LOCALFILE: ' + localfile)
+        print('SUMOLOGIC: ' + url)
+
+    with open(localfile, encoding='utf-8' ) as srcfile:
+        payload = json.load(srcfile)
+        headers = {'Content-Type':'application/json'}
+        response = session.post(url, data=json.dumps(payload), headers=headers).status_code
+        if ARGS.VERBOSE > 5:
+            print('RESPONSE: ' + str(response))
 
 def signout_to_vault():
     """
