@@ -57,6 +57,9 @@ PARSER.add_argument("-d", metavar='<cached>', dest='CACHED', \
 PARSER.add_argument("-v", type=int, default=0, metavar='<verbose>', \
                     dest='VERBOSE', help="increase verbosity")
 
+PARSER.add_argument("-i", "--initialize", action='store_true', default=False, \
+                    dest='INITIALIZE', help="initialize config file")
+
 ARGS = PARSER.parse_args()
 
 DOMAIN = 'UNSET'
@@ -69,6 +72,45 @@ CACHED = '/var/tmp/1password'
 os.environ['OLDER']  = '1'
 
 CMDSEP = ' '
+
+def initialize_config_file():
+    """
+    Initialize configuration file, write output, and then exit
+    """
+
+    my_config='/var/tmp/one_password_event_downloader.initial.cfg'
+    config = configparser.RawConfigParser()
+
+    config.add_section('Default')
+
+    domain_input = input ("Please enter your Domain: \n")
+    config.set('Default', 'DOMAIN', domain_input )
+
+    emails_input = input ("Please enter your Email Address: \n")
+    config.set('Default', 'EMAILS', emails_input )
+
+    apikey_input = input ("Please enter your API String: \n")
+    config.set('Default', 'APIKEY', apikey_input )
+
+    passwd_input = input ("Please enter your Passsphrase: \n")
+    config.set('Default', 'PASSWD', passwd_input )
+
+    cached_input = input ("Please enter your desired Cache Directory: \n")
+    config.set('Default', 'CACHED', cached_input )
+
+    source_input = input ("Please enter the URL of the Sumologic Source: \n")
+    config.set('Default', 'SOURCE', source_input )
+
+    older_input = 3
+    config.set('Default', 'OLDER', older_input )
+
+    with open(my_config, 'w') as configfile:
+        config.write(configfile)
+    print('Complete! Written: {}'.format(my_config))
+    sys.exit()
+
+if ARGS.INITIALIZE:
+    initialize_config_file()
 
 if ARGS.CFGFILE:
 
