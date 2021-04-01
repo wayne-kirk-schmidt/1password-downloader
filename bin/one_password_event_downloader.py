@@ -36,8 +36,8 @@ PARSER.add_argument("-b", metavar='<domain>', dest='DOMAIN', \
 PARSER.add_argument("-p", metavar='<passwd>', dest='PASSWD', \
                     help="set passphrase")
 
-PARSER.add_argument("-a", metavar='<apikey>', dest='APIKEY', \
-                    help="set apikey")
+PARSER.add_argument("-s", metavar='<secret>', dest='SECRET', \
+                    help="set secret")
 
 PARSER.add_argument("-m", metavar='<email>', dest='EMAILS', \
                     help="set email")
@@ -48,8 +48,8 @@ PARSER.add_argument("-c", metavar='<cfgfile>', dest='CFGFILE', \
 PARSER.add_argument("-o", metavar='<older>', dest='OLDER', \
                     help="set limit to collect in days")
 
-PARSER.add_argument("-s", metavar='<source>', dest='SOURCE', \
-                    help="specify Sumo Source to publish data to")
+PARSER.add_argument("-u", metavar='<srcurl>', dest='SRCURL', \
+                    help="specify Sumo Source Data Target URL")
 
 PARSER.add_argument("-d", metavar='<cached>', dest='CACHED', \
                     help="set cache directory")
@@ -64,9 +64,9 @@ ARGS = PARSER.parse_args()
 
 DOMAIN = 'UNSET'
 PASSWD = 'UNSET'
-APIKEY = 'UNSET'
+SECRET = 'UNSET'
 EMAILS = 'UNSET'
-SOURCE = 'UNSET'
+SRCURL = 'UNSET'
 CACHED = '/var/tmp/1password'
 
 os.environ['OLDER']  = '1'
@@ -90,17 +90,17 @@ def initialize_config_file():
     emails_input = input ("Please enter your Email Address: \n")
     config.set('Default', 'EMAILS', emails_input )
 
-    apikey_input = input ("Please enter your API String: \n")
-    config.set('Default', 'APIKEY', apikey_input )
+    apikey_input = input ("Please enter your Secret: \n")
+    config.set('Default', 'SECRET', apikey_input )
 
-    passwd_input = input ("Please enter your Passsphrase: \n")
+    passwd_input = input ("Please enter your Pass Phrase: \n")
     config.set('Default', 'PASSWD', passwd_input )
 
     cached_input = input ("Please enter your desired Cache Directory: \n")
     config.set('Default', 'CACHED', cached_input )
 
     source_input = input ("Please enter the URL of the Sumologic Source: \n")
-    config.set('Default', 'SOURCE', source_input )
+    config.set('Default', 'SRCURL', source_input )
 
     older_input = 3
     config.set('Default', 'OLDER', older_input )
@@ -130,9 +130,9 @@ if ARGS.CFGFILE:
         PASSWD = CONFIG.get("Default", "PASSWD")
         os.environ['PASSWD'] = PASSWD
 
-    if CONFIG.has_option("Default", "APIKEY"):
-        APIKEY = CONFIG.get("Default", "APIKEY")
-        os.environ['APIKEY'] = APIKEY
+    if CONFIG.has_option("Default", "SECRET"):
+        SECRET = CONFIG.get("Default", "SECRET")
+        os.environ['SECRET'] = SECRET
 
     if CONFIG.has_option("Default", "EMAILS"):
         EMAILS = CONFIG.get("Default", "EMAILS")
@@ -141,9 +141,9 @@ if ARGS.CFGFILE:
     if CONFIG.has_option("Default", "OLDER"):
         os.environ['OLDER'] = CONFIG.get("Default", "OLDER")
 
-    if CONFIG.has_option("Default", "SOURCE"):
-        SOURCE = CONFIG.get("Default", "SOURCE")
-        os.environ['SOURCE'] = SOURCE
+    if CONFIG.has_option("Default", "SRCURL"):
+        SRCURL = CONFIG.get("Default", "SRCURL")
+        os.environ['SRCURL'] = SRCURL
 
     if CONFIG.has_option("Default", "CACHED"):
         CACHED = CONFIG.get("Default", "CACHED")
@@ -155,8 +155,8 @@ if ARGS.CFGFILE:
     if ARGS.PASSWD:
         os.environ['PASSWD'] = ARGS.PASSWD
 
-    if ARGS.APIKEY:
-        os.environ['APIKEY'] = ARGS.APIKEY
+    if ARGS.SECRET:
+        os.environ['SECRET'] = ARGS.SECRET
 
     if ARGS.EMAILS:
         os.environ['EMAILS'] = ARGS.EMAILS
@@ -164,13 +164,13 @@ if ARGS.CFGFILE:
     if ARGS.OLDER:
         os.environ['OLDER'] = ARGS.OLDER
 
-    if ARGS.SOURCE:
-        os.environ['SOURCE'] = ARGS.SOURCE
+    if ARGS.SRCURL:
+        os.environ['SRCURL'] = ARGS.SRCURL
 
     if ARGS.CACHED:
         os.environ['CACHED'] = ARGS.CACHED
 try:
-    OPS_APIKEY = os.environ['APIKEY']
+    OPS_SECRET = os.environ['SECRET']
     OPS_EMAILS = os.environ['EMAILS']
     OPS_PASSWD = os.environ['PASSWD']
     OPS_DOMAIN = os.environ['DOMAIN']
@@ -180,9 +180,9 @@ except KeyError as myerror:
 if ARGS.VERBOSE > 7:
     print('Domain: {}'.format(os.environ['DOMAIN']))
     print('Passwd: {}'.format(os.environ['PASSWD']))
-    print('ApiKey: {}'.format(os.environ['APIKEY']))
+    print('ApiKey: {}'.format(os.environ['SECRET']))
     print('Emails: {}'.format(os.environ['EMAILS']))
-    print('Source: {}'.format(os.environ['SOURCE']))
+    print('Source: {}'.format(os.environ['SRCURL']))
     print('CacheD: {}'.format(os.environ['CACHED']))
     print('Older_: {}'.format(os.environ['OLDER']))
 
@@ -223,7 +223,7 @@ def signin_to_vault():
     """
     Sign into the vault using the op login command. Note we are setting an ops session name
     """
-    siginlist = [ opcmd, 'signin', DOMAIN, EMAILS, APIKEY, '-r', '--shorthand', 'eventlist']
+    siginlist = [ opcmd, 'signin', DOMAIN, EMAILS, SECRET, '-r', '--shorthand', 'eventlist']
     signincmd = CMDSEP.join(siginlist)
 
     oplogin = pexpect.spawn(signincmd, encoding='utf-8')
@@ -311,8 +311,8 @@ def enrich_and_publish_events(jsonarray):
 
         manifestobject.write('{0},{1},{2},{3}\n'.format(TODAYDATE,bucket,eventid,targetjsonfile))
 
-        if SOURCE != 'UNSET':
-            publish_mapitem(targetjsonfile,session,SOURCE)
+        if SRCURL != 'UNSET':
+            publish_mapitem(targetjsonfile,session,SRCURL)
 
         if eventid:
             finalevent = str(eventid)
