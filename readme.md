@@ -46,13 +46,18 @@ Script Names and Purposes
     2. show the help page
         ./bin/one_password_event_downloader.py -h
 
-    3. specify configuration file to use
+    3. initialize the configuration file from standard input
+        ./bin/one_password_event_downloader.py -i
+
+NOTE: This will write an configuration file: /var/tmp/one_password_event_downloader.initial.cfg
+
+    4. specify configuration file to use
         ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg
 
-    4. download the last 10 days of events
+    5. download the last 10 days of events
         ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -o 10
 
-    5. specify script verbosity ( default is 0 or silent save errors )
+    6. specify script verbosity ( default is 0 or silent save errors )
         ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -v 5
 
 To Do List:
