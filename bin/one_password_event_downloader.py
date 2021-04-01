@@ -80,6 +80,7 @@ def initialize_config_file():
 
     my_config='/var/tmp/one_password_event_downloader.initial.cfg'
     config = configparser.RawConfigParser()
+    config.optionxform = str
 
     config.add_section('Default')
 
