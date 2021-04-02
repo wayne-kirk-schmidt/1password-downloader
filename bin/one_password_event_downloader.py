@@ -73,6 +73,8 @@ os.environ['OLDER']  = '1'
 
 CMDSEP = ' '
 
+TOTALEVENTS = 0
+
 def initialize_config_file():
     """
     Initialize configuration file, write output, and then exit
@@ -281,7 +283,6 @@ def enrich_and_publish_events(jsonarray):
     """
 
     session = requests.Session()
-
     manifestobject = open(MANIFEST, 'a')
 
     for jsonobject in jsonarray:
@@ -297,13 +298,17 @@ def enrich_and_publish_events(jsonarray):
 
         eventdate = dateutil.parser.parse(jsondate)
         bucket = eventdate.strftime('%Y%m%d')
-        datedelta = int(TODAYDATE) - int(bucket)
-        if datedelta >= int(os.environ['OLDER']):
-            if ARGS.VERBOSE > 5:
-                print('{} - {} = {}'.format(TODAYDATE, bucket, datedelta))
-            sys.exit()
+
+        nowevent = (datetime.datetime.strptime(str(TODAYDATE),'%Y%m%d'))
+        oldevent = (datetime.datetime.strptime(str(bucket),'%Y%m%d'))
+        datediff = int ( ( nowevent - oldevent ).total_seconds() / 3600 / 24 )
+
+        if ARGS.VERBOSE > 7:
+            print('DAYS: {}'.format(datediff))
+
         bucket_dir = os.path.join(CACHEDIR, bucket)
         os.makedirs(bucket_dir, exist_ok=True)
+
         targetjsonfile = os.path.join(bucket_dir, str(eventid) + '.json' )
         with open(targetjsonfile, 'w', encoding="utf-8", newline='\n' ) as jsonfile:
             json.dump(jsonobject, jsonfile, indent=4, sort_keys=True, ensure_ascii=True)
@@ -313,6 +318,17 @@ def enrich_and_publish_events(jsonarray):
 
         if SRCURL != 'UNSET':
             publish_mapitem(targetjsonfile,session,SRCURL)
+
+        global TOTALEVENTS
+        TOTALEVENTS = TOTALEVENTS + 1
+
+        if datediff > int(os.environ['OLDER']):
+            if ARGS.VERBOSE > 5:
+                print('CollectionResults - TodayDate: {}'.format(TODAYDATE))
+                print('CollectionResults - EventDate: {}'.format(bucket))
+                print('CollectionResults - DateDelta: {}'.format(datediff))
+                print('CollectionResults - AllEvents: {}'.format(TOTALEVENTS))
+            sys.exit()
 
         if eventid:
             finalevent = str(eventid)
@@ -334,8 +350,8 @@ def publish_mapitem(localfile, session, url):
         response = session.post(url, data=json.dumps(payload), headers=headers).status_code
         if ARGS.VERBOSE > 5:
             print('RESPONSE: ' + str(response))
-        if response == 200:
-            os.remove(localfile)
+        ### if response == 200:
+        ###     os.remove(localfile)
 
 def signout_to_vault():
     """
@@ -354,5 +370,5 @@ while LAST_EVENT != 'UNSET':
     signin_to_vault()
     LAST_EVENT = list_vault_events(LAST_EVENT)
     if ARGS.VERBOSE > 5:
-        print('Lastevent: {}'.format(LAST_EVENT))
+        print('LastEvent: {}'.format(LAST_EVENT))
 signout_to_vault()
