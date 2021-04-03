@@ -197,13 +197,13 @@ if ARGS.VERBOSE > 7:
     print('CacheD: {}'.format(os.environ['CACHED']))
     print('Older_: {}'.format(os.environ['OLDER']))
 
-TODAYDATE = datetime.date.today().strftime('%Y%m%d')
+TODAY = datetime.date.today().strftime('%Y%m%d')
 
 LOGDIR = os.path.join(CACHED, 'log')
 VARDIR = os.path.join(CACHED, 'var')
 CFGDIR = os.path.join(CACHED, 'etc')
 CACHEDIR = os.path.join(VARDIR, 'cache')
-MANIFEST = os.path.join(LOGDIR, '1password' + '.' + TODAYDATE + '.' + 'manifest.log')
+EVENTSLOG = os.path.join(LOGDIR, '1password' + '.' + TODAY + '.' + 'manifest.log')
 
 USERDICT = dict()
 
@@ -212,7 +212,7 @@ if ARGS.VERBOSE > 5:
     print('VarDir: {}'.format(VARDIR))
     print('CfgDir: {}'.format(CFGDIR))
     print('Events: {}'.format(CACHEDIR))
-    print('Manifest: {}'.format(MANIFEST))
+    print('Manifest: {}'.format(EVENTSLOG))
 
 def setup_directories():
     """
@@ -293,12 +293,9 @@ def build_bucket_dir(jsondate):
     bucket_dir = os.path.join(CACHEDIR, bucket)
 
     os.makedirs(bucket_dir, exist_ok=True)
-    nowevent = (datetime.datetime.strptime(str(TODAYDATE),'%Y%m%d'))
+    nowevent = (datetime.datetime.strptime(str(TODAY),'%Y%m%d'))
     oldevent = (datetime.datetime.strptime(str(bucket),'%Y%m%d'))
     datediff = int ( ( nowevent - oldevent ).total_seconds() / 3600 / 24 )
-
-    if ARGS.VERBOSE > 8:
-        print('DAYS: {}'.format(datediff))
 
     return bucket, bucket_dir, datediff
 
@@ -310,7 +307,7 @@ def enrich_and_publish_events(jsonarray):
     """
 
     session = requests.Session()
-    manifestobject = open(MANIFEST, 'a')
+    manifestobject = open(EVENTSLOG, 'a')
 
     for jsonobject in jsonarray:
         eventid = jsonobject['eid']
@@ -326,22 +323,30 @@ def enrich_and_publish_events(jsonarray):
         bucket, bucket_dir, datediff = build_bucket_dir(jsondate)
 
         targetjsonfile = os.path.join(bucket_dir, str(eventid) + '.json' )
-        with open(targetjsonfile, 'w', encoding="utf-8", newline='\n' ) as jsonfile:
-            json.dump(jsonobject, jsonfile, indent=4, sort_keys=True, ensure_ascii=True)
-        jsonfile.close()
 
-        manifestobject.write('{0},{1},{2},{3}\n'.format(TODAYDATE,bucket,eventid,targetjsonfile))
+        if os.path.exists(targetjsonfile):
+            if ARGS.VERBOSE > 5:
+                print('Skipping Previously Collected Event: {}'.format(eventid))
+        else:
+            if ARGS.VERBOSE > 5:
+                print('EventAge: {}'.format(datediff))
+                print('EventFile: {}'.format(targetjsonfile))
+            with open(targetjsonfile, 'w', encoding="utf-8", newline='\n' ) as jsonfile:
+                json.dump(jsonobject, jsonfile, indent=4, sort_keys=True, ensure_ascii=True)
+            jsonfile.close()
 
-        if SRCURL != 'UNSET':
-            publish_mapitem(targetjsonfile,session,SRCURL)
+            manifestobject.write('{0},{1},{2},{3}\n'.format(TODAY,bucket,eventid,targetjsonfile))
 
-        totalevents = int(os.environ['TOTALEVENTS'])
-        totalevents = totalevents + 1
-        os.environ['TOTALEVENTS'] = str(totalevents)
+            if SRCURL != 'UNSET':
+                publish_mapitem(targetjsonfile,session,SRCURL)
+
+            totalevents = int(os.environ['TOTALEVENTS'])
+            totalevents = totalevents + 1
+            os.environ['TOTALEVENTS'] = str(totalevents)
 
         if datediff > int(os.environ['OLDER']):
             if ARGS.VERBOSE > 5:
-                print('CollectionResults - TodayDate: {}'.format(TODAYDATE))
+                print('CollectionResults - TodayDate: {}'.format(TODAY))
                 print('CollectionResults - EventDate: {}'.format(bucket))
                 print('CollectionResults - DateDelta: {}'.format(datediff))
                 print('CollectionResults - AllEvents: {}'.format(os.environ['TOTALEVENTS']))
