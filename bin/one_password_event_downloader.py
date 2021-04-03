@@ -3,14 +3,21 @@
 """
 1password_event_downloader - Script to download events using the 1password CLI
 
-script flow:
+Software Process:
+
     + login to the 1password environment
     + get a session token
     + use the session token to invoke the CLI
     + output the events in JSON format
-    + persists the data locally or publish to a Sumo Endpoint
+    + enriches the JSON output to resolve users and objects
+    + persists the data locally
+    + optionally publishes to a HTTPS web endpoint
 
-note: events can be pulled down 100 events at a time
+Caveat:
+    + Events can only be pulled down 100 events at a time
+    + Older events need to be retrieved by specifying a specific Event ID (eid)
+    + Session has to be set as an environment variable
+
 """
 
 import os
@@ -60,6 +67,9 @@ PARSER.add_argument("-v", type=int, default=0, metavar='<verbose>', \
 PARSER.add_argument("-i", "--initialize", action='store_true', default=False, \
                     dest='INITIALIZE', help="initialize config file")
 
+PARSER.add_argument("-r", "--remove", action='store_true', default=False, \
+                    dest='REMOVE', help="remove event files after publishing")
+
 ARGS = PARSER.parse_args()
 
 DOMAIN = 'UNSET'
@@ -70,10 +80,9 @@ SRCURL = 'UNSET'
 CACHED = '/var/tmp/1password'
 
 os.environ['OLDER']  = '1'
+os.environ['TOTALEVENTS']  = '0'
 
 CMDSEP = ' '
-
-TOTALEVENTS = 0
 
 def initialize_config_file():
     """
@@ -275,6 +284,24 @@ def list_vault_events(lasttoken):
     finalevent = enrich_and_publish_events(myjsonarray)
     return finalevent
 
+def build_bucket_dir(jsondate):
+    """
+    Calculate the bucket directory to write the JSON files
+    """
+
+    bucket = ( dateutil.parser.parse(jsondate)).strftime('%Y%m%d')
+    bucket_dir = os.path.join(CACHEDIR, bucket)
+
+    os.makedirs(bucket_dir, exist_ok=True)
+    nowevent = (datetime.datetime.strptime(str(TODAYDATE),'%Y%m%d'))
+    oldevent = (datetime.datetime.strptime(str(bucket),'%Y%m%d'))
+    datediff = int ( ( nowevent - oldevent ).total_seconds() / 3600 / 24 )
+
+    if ARGS.VERBOSE > 8:
+        print('DAYS: {}'.format(datediff))
+
+    return bucket, bucket_dir, datediff
+
 def enrich_and_publish_events(jsonarray):
     """
     This looks up uuid in the users list and publishes
@@ -296,18 +323,7 @@ def enrich_and_publish_events(jsonarray):
             jsonobject['user_name'] = 'unresolved_name'
             jsonobject['user_mail'] = 'unresolved_mail'
 
-        eventdate = dateutil.parser.parse(jsondate)
-        bucket = eventdate.strftime('%Y%m%d')
-
-        nowevent = (datetime.datetime.strptime(str(TODAYDATE),'%Y%m%d'))
-        oldevent = (datetime.datetime.strptime(str(bucket),'%Y%m%d'))
-        datediff = int ( ( nowevent - oldevent ).total_seconds() / 3600 / 24 )
-
-        if ARGS.VERBOSE > 7:
-            print('DAYS: {}'.format(datediff))
-
-        bucket_dir = os.path.join(CACHEDIR, bucket)
-        os.makedirs(bucket_dir, exist_ok=True)
+        bucket, bucket_dir, datediff = build_bucket_dir(jsondate)
 
         targetjsonfile = os.path.join(bucket_dir, str(eventid) + '.json' )
         with open(targetjsonfile, 'w', encoding="utf-8", newline='\n' ) as jsonfile:
@@ -319,15 +335,16 @@ def enrich_and_publish_events(jsonarray):
         if SRCURL != 'UNSET':
             publish_mapitem(targetjsonfile,session,SRCURL)
 
-        global TOTALEVENTS
-        TOTALEVENTS = TOTALEVENTS + 1
+        totalevents = int(os.environ['TOTALEVENTS'])
+        totalevents = totalevents + 1
+        os.environ['TOTALEVENTS'] = str(totalevents)
 
         if datediff > int(os.environ['OLDER']):
             if ARGS.VERBOSE > 5:
                 print('CollectionResults - TodayDate: {}'.format(TODAYDATE))
                 print('CollectionResults - EventDate: {}'.format(bucket))
                 print('CollectionResults - DateDelta: {}'.format(datediff))
-                print('CollectionResults - AllEvents: {}'.format(TOTALEVENTS))
+                print('CollectionResults - AllEvents: {}'.format(os.environ['TOTALEVENTS']))
             sys.exit()
 
         if eventid:
@@ -350,8 +367,8 @@ def publish_mapitem(localfile, session, url):
         response = session.post(url, data=json.dumps(payload), headers=headers).status_code
         if ARGS.VERBOSE > 5:
             print('RESPONSE: ' + str(response))
-        ### if response == 200:
-        ###     os.remove(localfile)
+        if response == 200 and ARGS.REMOVE:
+            os.remove(localfile)
 
 def signout_to_vault():
     """
