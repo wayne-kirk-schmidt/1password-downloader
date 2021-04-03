@@ -89,7 +89,7 @@ def initialize_config_file():
     Initialize configuration file, write output, and then exit
     """
 
-    my_config='/var/tmp/one_password_event_downloader.initial.cfg'
+    starter_config='/var/tmp/one_password_event_downloader.initial.cfg'
     config = configparser.RawConfigParser()
     config.optionxform = str
 
@@ -116,9 +116,9 @@ def initialize_config_file():
     older_input = 3
     config.set('Default', 'OLDER', older_input )
 
-    with open(my_config, 'w') as configfile:
+    with open(starter_config, 'w') as configfile:
         config.write(configfile)
-    print('Complete! Written: {}'.format(my_config))
+    print('Complete! Written: {}'.format(starter_config))
     sys.exit()
 
 if ARGS.INITIALIZE:
