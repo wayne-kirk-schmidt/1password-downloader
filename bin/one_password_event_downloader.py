@@ -52,8 +52,8 @@ PARSER.add_argument("-m", metavar='<email>', dest='EMAILS', \
 PARSER.add_argument("-c", metavar='<cfgfile>', dest='CFGFILE', \
                     help="use config file")
 
-PARSER.add_argument("-o", metavar='<older>', dest='OLDER', \
-                    help="set limit to collect in days")
+PARSER.add_argument("-a", metavar='<myage>', dest='OLDER', \
+                    help="set the age to compare in days")
 
 PARSER.add_argument("-u", metavar='<srcurl>', dest='SRCURL', \
                     help="specify Sumo Source Data Target URL")

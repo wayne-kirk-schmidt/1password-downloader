@@ -55,10 +55,20 @@ NOTE: This will write an configuration file: /var/tmp/one_password_event_downloa
         ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg
 
     5. download the last 10 days of events
-        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -o 10
+        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -a 10
 
     6. specify script verbosity ( default is 0 or silent save errors )
         ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -v 5
+
+NOTE: The script will keep the downloaded JSON files and compare new events to persisted files
+      This allows to run the script on a regular basis, and ensure little chance of duplicates
+
+    7. remove files after syncing to an HTTPS source
+        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -v 5 -r
+
+    8. useful command. Use configuration file and syncing only the last day of events
+        ./bin/one_password_event_downloader.py -c ./etc/one_password_event_downloader.cfg -a 1
+
 
 To Do List:
 ===========
